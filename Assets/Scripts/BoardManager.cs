@@ -7,6 +7,12 @@ using UnityEngine.UIElements;
 
 public class BoardManager : MonoBehaviour
 {
+    public event EventHandler<OnMoveCompleteEventArgs> OnMoveComplete;
+    public class OnMoveCompleteEventArgs : EventArgs
+    {
+        public bool IsMovePerformed { get; set; }
+    }
+
     public event EventHandler<OnTileMoveEventArgs> OnTileMove;
     public class OnTileMoveEventArgs : EventArgs
     {
@@ -33,6 +39,28 @@ public class BoardManager : MonoBehaviour
         board.SetTile(position, null);
     }
 
+    public bool TryGetRandomEmptyPosition(out Vector3Int emptyPosition)
+    {
+        List<Vector3Int> empty_tiles = new List<Vector3Int>();
+        foreach (Vector3Int position in boardBase.cellBounds.allPositionsWithin)
+        {
+            if (!board.HasTile(position))
+            {
+                empty_tiles.Add(position);
+            }
+        }
+
+        // The board is full
+        if (0 == empty_tiles.Count)
+        {
+            emptyPosition = Vector3Int.zero;
+            return false;
+        }
+
+        emptyPosition = empty_tiles[UnityEngine.Random.Range(0, empty_tiles.Count)];
+        return true;
+    }
+
     private void Start()
     {
         Player.Instance.OnPlayerMove += Player_OnPlayerMove;
@@ -45,7 +73,10 @@ public class BoardManager : MonoBehaviour
         PerformAdjacencyMoves(e.Direction);
 
         // Then aligning the tiles to the edges, as per the movement direction
-        PerformEdgeAlignments(e.Direction);
+        bool isMovePerformed = PerformEdgeAlignments(e.Direction);
+
+        OnMoveComplete?.Invoke(
+            this, new OnMoveCompleteEventArgs { IsMovePerformed = isMovePerformed });
     }
 
     private void PerformAdjacencyMoves(Player.MoveDirection direction)
@@ -83,8 +114,9 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private void PerformEdgeAlignments(Player.MoveDirection direction)
+    private bool PerformEdgeAlignments(Player.MoveDirection direction)
     {
+        bool isMovePerformed = false;
         for (int i = 0; i < boardBase.cellBounds.size.x; i++)
         {
             for (int j = 0; j < boardBase.cellBounds.size.y; j++)
@@ -96,13 +128,18 @@ public class BoardManager : MonoBehaviour
                 {
                     Vector3Int originPosition = 
                         LookupNearestTilePosition(destinationPosition, direction);
-
-                    // Replacing the tile on the board
-                    PlaceTile(destinationPosition, board.GetTile(originPosition));
-                    RemoveTile(originPosition);
+                    if (board.HasTile(originPosition))
+                    {
+                        // Replacing the tile on the board
+                        PlaceTile(destinationPosition, board.GetTile(originPosition));
+                        RemoveTile(originPosition);
+                        isMovePerformed = true;
+                    }
                 }
             }
         }
+
+        return isMovePerformed;
     }
 
     private Vector3Int LookupNearestTilePosition(

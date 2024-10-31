@@ -13,11 +13,14 @@ public class GameManager : MonoBehaviour
         public TileBase Result;
     }
 
+    [SerializeField] private TileBase tile2;
+    [SerializeField] private TileBase tile4;
     [SerializeField] private List<TileCombination> combinations;
     [SerializeField] private Grid board;
 
     private BoardManager boardManager;
     private Dictionary<TileBase, TileBase> combinationMap;
+    private bool isTurnMovePerformed = false;
 
     private void Awake()
     {
@@ -34,6 +37,27 @@ public class GameManager : MonoBehaviour
     {
         boardManager = board.GetComponent<BoardManager>();
         boardManager.OnTileMove += BoardManager_OnTileMove;
+        boardManager.OnMoveComplete += BoardManager_OnMoveComplete;
+    }
+
+    private void BoardManager_OnMoveComplete(object sender, BoardManager.OnMoveCompleteEventArgs e)
+    {
+        if ((e.IsMovePerformed || isTurnMovePerformed) &&
+            boardManager.TryGetRandomEmptyPosition(out Vector3Int emptyPosition))
+        {
+            // Randomly place a new tile on the board, 90% chance of 2 and 10% chance of 4
+            int rand = UnityEngine.Random.Range(0, 10);
+            if (rand < 9)
+            {
+                boardManager.PlaceTile(emptyPosition, tile2);
+            }
+            else
+            {
+                boardManager.PlaceTile(emptyPosition, tile4);
+            }
+        }
+
+        isTurnMovePerformed = false;
     }
 
     private void BoardManager_OnTileMove(
@@ -45,6 +69,7 @@ public class GameManager : MonoBehaviour
         {
             boardManager.PlaceTile(e.DestTile.Position, combinationMap[e.DestTile.Tile]);
             boardManager.RemoveTile(e.OriginTile.Position);
+            isTurnMovePerformed = true;
         }
     }
 }
