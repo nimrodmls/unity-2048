@@ -38,38 +38,28 @@ public class BoardManager : MonoBehaviour
         Player.Instance.OnPlayerMove += Player_OnPlayerMove;
     }
 
-    private Vector3Int LookupNearestTilePosition(
-        Vector3Int tilePosition, Player.MoveDirection direction)
-    {
-        Vector3Int currentPosition = tilePosition;
-        for (int i = 0; i < boardBase.cellBounds.size.x; i++)
-        {
-            currentPosition -= GetDirectionVector(direction);
-            if (board.HasTile(currentPosition))
-            {
-                return currentPosition;
-            }
-        }
-
-        return currentPosition;
-    }
-
     private void Player_OnPlayerMove(object sender, Player.OnMoveEventArgs e)
     {
-        Vector3Int originPosition;
-        Vector3Int destinationPosition;
-
         // First allowing all the tiles to move, to perform addition
         // Note that we assume that the board is a square! (x == y)
+        PerformAdjacencyMoves(e.Direction);
+
+        // Then aligning the tiles to the edges, as per the movement direction
+        PerformEdgeAlignments(e.Direction);
+    }
+
+    private void PerformAdjacencyMoves(Player.MoveDirection direction)
+    {
         for (int i = 0; i < boardBase.cellBounds.size.x; i++)
         {
             for (int j = 0; j < boardBase.cellBounds.size.y; j++)
             {
-                destinationPosition = GetDirectionRelativeCellPosition(i, j, e.Direction);
+                Vector3Int destinationPosition = GetDirectionRelativeCellPosition(i, j, direction);
 
                 if (board.HasTile(destinationPosition))
                 {
-                    originPosition = LookupNearestTilePosition(destinationPosition, e.Direction);
+                    Vector3Int originPosition = 
+                        LookupNearestTilePosition(destinationPosition, direction);
                     if (board.HasTile(originPosition))
                     {
                         OnTileMove?.Invoke(
@@ -91,21 +81,44 @@ public class BoardManager : MonoBehaviour
                 }
             }
         }
+    }
 
+    private void PerformEdgeAlignments(Player.MoveDirection direction)
+    {
         for (int i = 0; i < boardBase.cellBounds.size.x; i++)
         {
             for (int j = 0; j < boardBase.cellBounds.size.y; j++)
             {
-                destinationPosition = GetDirectionRelativeCellPosition(i, j, e.Direction);
+                Vector3Int destinationPosition = GetDirectionRelativeCellPosition(i, j, direction);
 
+                // Only moving to vacant positions
                 if (!board.HasTile(destinationPosition))
                 {
-                    originPosition = LookupNearestTilePosition(destinationPosition, e.Direction);
+                    Vector3Int originPosition = 
+                        LookupNearestTilePosition(destinationPosition, direction);
+
+                    // Replacing the tile on the board
                     PlaceTile(destinationPosition, board.GetTile(originPosition));
                     RemoveTile(originPosition);
                 }
             }
         }
+    }
+
+    private Vector3Int LookupNearestTilePosition(
+        Vector3Int tilePosition, Player.MoveDirection direction)
+    {
+        Vector3Int currentPosition = tilePosition;
+        for (int i = 0; i < boardBase.cellBounds.size.x; i++)
+        {
+            currentPosition -= GetDirectionVector(direction);
+            if (board.HasTile(currentPosition))
+            {
+                return currentPosition;
+            }
+        }
+
+        return currentPosition;
     }
 
     private Vector3Int GetDirectionRelativeCellPosition(
