@@ -7,7 +7,6 @@ using UnityEngine.UIElements;
 
 public class BoardManager : MonoBehaviour
 {
-    public event EventHandler OnMoveComplete;
     public event EventHandler<OnTileMoveEventArgs> OnTileMove;
     public class OnTileMoveEventArgs : EventArgs
     {
@@ -66,31 +65,7 @@ public class BoardManager : MonoBehaviour
         {
             for (int j = 0; j < boardBase.cellBounds.size.y; j++)
             {
-                // If the direction is left/right, then the primary axis is X
-                // (means that the outer loop is X axis, and inner is Y axis)
-                // Otherwise it's up/down and the primary axis is Y
-                switch (e.Direction)
-                {
-                    case Player.MoveDirection.Up:
-                        destinationPosition = boardBase.origin + 
-                            new Vector3Int(j, boardBase.cellBounds.size.y - i, 0);
-                        break;
-                    case Player.MoveDirection.Down:
-                        destinationPosition = boardBase.origin + new Vector3Int(j, i, 0);
-                        break;
-                    case Player.MoveDirection.Left:
-                        destinationPosition = boardBase.origin + new Vector3Int(i, j, 0);
-                        break;
-                    case Player.MoveDirection.Right:
-                        destinationPosition = boardBase.origin + 
-                            new Vector3Int(boardBase.cellBounds.size.x - i, j, 0);
-                        break;
-                    default:
-                        originPosition = Vector3Int.zero;
-                        destinationPosition = Vector3Int.zero;
-                        Debug.LogError("Invalid move direction");
-                        break;
-                }
+                destinationPosition = GetDirectionRelativeCellPosition(i, j, e.Direction);
 
                 if (board.HasTile(destinationPosition))
                 {
@@ -117,8 +92,44 @@ public class BoardManager : MonoBehaviour
             }
         }
 
-        // Notifying that the move is complete
-        OnMoveComplete?.Invoke(this, EventArgs.Empty);
+        for (int i = 0; i < boardBase.cellBounds.size.x; i++)
+        {
+            for (int j = 0; j < boardBase.cellBounds.size.y; j++)
+            {
+                destinationPosition = GetDirectionRelativeCellPosition(i, j, e.Direction);
+
+                if (!board.HasTile(destinationPosition))
+                {
+                    originPosition = LookupNearestTilePosition(destinationPosition, e.Direction);
+                    PlaceTile(destinationPosition, board.GetTile(originPosition));
+                    RemoveTile(originPosition);
+                }
+            }
+        }
+    }
+
+    private Vector3Int GetDirectionRelativeCellPosition(
+        int axis1, int axis2, Player.MoveDirection direction)
+    {
+        // If the direction is left/right, then the primary axis is X
+        // (means that the outer loop is X axis, and inner is Y axis)
+        // Otherwise it's up/down and the primary axis is Y
+        switch (direction)
+        {
+            case Player.MoveDirection.Up:
+                return boardBase.origin +
+                    new Vector3Int(axis2, boardBase.cellBounds.size.y - axis1 - 1, 0);
+            case Player.MoveDirection.Down:
+                return boardBase.origin + new Vector3Int(axis2, axis1, 0);
+            case Player.MoveDirection.Left:
+                return boardBase.origin + new Vector3Int(axis1, axis2, 0);
+            case Player.MoveDirection.Right:
+                return boardBase.origin +
+                    new Vector3Int(boardBase.cellBounds.size.x - axis1 - 1, axis2, 0);
+            default:
+                Debug.LogError("Invalid move direction");
+                return Vector3Int.zero;
+        }
     }
 
     private Vector3Int GetDirectionVector(Player.MoveDirection direction)
